@@ -72,7 +72,7 @@ for rozmiar in rozmiary:
 
 #Analiza kolizji
 wybranaskrot = sha512 
-haszewybrane = [wybranaskrot(pliki[1])[:3] for _ in range(1000)]
+haszewybrane = [wybranaskrot(os.urandom(64))[:3] for _ in range(1000)]
 liczbakolizji = policzkolizje(haszewybrane)
 print(f"Liczba kolizji na pierwszych 12 bitach dla {wybranaskrot.__name__}: {liczbakolizji}")
 
