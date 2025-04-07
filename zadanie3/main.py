@@ -92,3 +92,10 @@ plt.ylabel("Czas (sekundy)")
 plt.title("Czas obliczania skrótu dla różnych rozmiarów plików")
 plt.legend()
 plt.show()
+
+#wypisz printem wszystko co jest w tabeli czasow
+for rozmiar in rozmiary:
+    print(f"Rozmiar {rozmiar}MB:")
+    for funkcja, czas in tabelaczasow[rozmiar]:
+        print(f"{funkcja}: {czas:.6f} sekundy")
+    print()
