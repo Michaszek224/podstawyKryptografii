@@ -5,39 +5,52 @@ import time
 import os
 import matplotlib.pyplot as plt
 
-
 # Stałe
-rozmiarBloku = 16  # Rozmiar bloku AES w bajtach
-rozmiarKlucza = 16  # Rozmiar klucza AES w bajtach
+ROZMIAR_BLOKU = 16  # Rozmiar bloku AES w bajtach
+ROZMIAR_KLUCZA = 16  # Rozmiar klucza AES w bajtach
 
-def zmierzCzasSzyfrowaniaIDeszyfrowania(tryb, sciezkaPliku, klucz, iv=None):
-    with open(sciezkaPliku, 'rb') as f:
-        tekstJawny = f.read()
+def zmierz_czas_szyfrowania_i_deszyfrowania(tryb, sciezka_pliku, klucz, iv=None):
+    with open(sciezka_pliku, 'rb') as f:
+        original_tekst = f.read()  # Zachowaj oryginalne dane bez paddingu
 
-    szyfr = AES.new(klucz, tryb, iv) if iv else AES.new(klucz, tryb)
-    czasStart = time.time()
+    tekst_jawny = original_tekst
+    nonce = None
+
+    # Inicjalizacja szyfru
     if tryb == AES.MODE_CTR:
-        tekstSzyfrowany = szyfr.encrypt(tekstJawny)
-    elif tryb in [AES.MODE_CBC, AES.MODE_ECB, AES.MODE_CFB, AES.MODE_OFB]:
-        tekstSzyfrowany = szyfr.encrypt(pad(tekstJawny, rozmiarBloku))
-    czasSzyfrowania = time.time() - czasStart
-    if tryb == AES.MODE_CTR:
-        szyfrDeszyfrujacy = AES.new(klucz, tryb, nonce=szyfr.nonce)
+        nonce = get_random_bytes(8)
+        szyfr = AES.new(klucz, tryb, nonce=nonce)
     else:
-        szyfrDeszyfrujacy = AES.new(klucz, tryb, iv) if iv else AES.new(klucz, tryb)
-    czasStart = time.time()
+        szyfr = AES.new(klucz, tryb, iv=iv) if iv else AES.new(klucz, tryb)
+
+    # Szyfrowanie (tylko dla trybów blokowych z paddingiem)
+    start = time.time()
+    if tryb in [AES.MODE_ECB, AES.MODE_CBC]:
+        tekst_jawny = pad(original_tekst, ROZMIAR_BLOKU)
+    tekst_szyfrowany = szyfr.encrypt(tekst_jawny)
+    czas_szyfrowania = time.time() - start
+
+    # Deszyfrowanie
     if tryb == AES.MODE_CTR:
-        tekstDeszyfrowany = szyfrDeszyfrujacy.decrypt(tekstSzyfrowany)
-    elif tryb in [AES.MODE_CBC, AES.MODE_ECB, AES.MODE_CFB, AES.MODE_OFB]:
-        tekstDeszyfrowany = unpad(szyfrDeszyfrujacy.decrypt(tekstSzyfrowany), rozmiarBloku)
-    czasDeszyfrowania = time.time() - czasStart
+        szyfr_deszyf = AES.new(klucz, tryb, nonce=nonce)
+    else:
+        szyfr_deszyf = AES.new(klucz, tryb, iv=iv) if iv else AES.new(klucz, tryb)
+    
+    start = time.time()
+    tekst_deszyfrowany = szyfr_deszyf.decrypt(tekst_szyfrowany)
+    
+    # Usuwanie paddingu tylko dla trybów blokowych
+    if tryb in [AES.MODE_ECB, AES.MODE_CBC]:
+        tekst_deszyfrowany = unpad(tekst_deszyfrowany, ROZMIAR_BLOKU)
+    czas_deszyfrowania = time.time() - start
 
-    assert tekstJawny == tekstDeszyfrowany, "Deszyfrowanie nie powiodło się!"
-    return czasSzyfrowania, czasDeszyfrowania
+    # Porównaj z oryginalnym tekstem (bez paddingu)
+    assert original_tekst == tekst_deszyfrowany, "Błąd deszyfrowania!"
+    return czas_szyfrowania, czas_deszyfrowania
 
-def analizujTryby(rozmiaryPlikow):
-    klucz = get_random_bytes(rozmiarKlucza)
-    iv = get_random_bytes(rozmiarBloku)
+def analizuj_tryby(rozmiary_plikow):
+    klucz = get_random_bytes(ROZMIAR_KLUCZA)
+    iv = get_random_bytes(ROZMIAR_BLOKU)  # Tylko dla trybów wymagających IV
 
     tryby = {
         "ECB": AES.MODE_ECB,
@@ -48,23 +61,17 @@ def analizujTryby(rozmiaryPlikow):
     }
 
     wyniki = {}
-    for rozmiar in rozmiaryPlikow:
-        sciezkaPliku = f"plik_testowy_{rozmiar}.bin"
-        with open(sciezkaPliku, 'wb') as f:
+    for rozmiar in rozmiary_plikow:
+        sciezka = f"test_{rozmiar}.bin"
+        with open(sciezka, 'wb') as f:
             f.write(os.urandom(rozmiar))
 
         wyniki[rozmiar] = {}
-        for nazwaTrybu, tryb in tryby.items():
-            if nazwaTrybu in ["CBC", "OFB", "CFB"]:
-                czasSzyfrowania, czasDeszyfrowania = zmierzCzasSzyfrowaniaIDeszyfrowania(tryb, sciezkaPliku, klucz, iv)
-            elif nazwaTrybu == "CTR":
-                czasSzyfrowania, czasDeszyfrowania = zmierzCzasSzyfrowaniaIDeszyfrowania(tryb, sciezkaPliku, klucz, iv=None)
-            else:
-                czasSzyfrowania, czasDeszyfrowania = zmierzCzasSzyfrowaniaIDeszyfrowania(tryb, sciezkaPliku, klucz)
-
-            wyniki[rozmiar][nazwaTrybu] = (czasSzyfrowania, czasDeszyfrowania)
-
-        os.remove(sciezkaPliku)
+        for nazwa, tryb in tryby.items():
+            iv_param = iv if tryb in [AES.MODE_CBC, AES.MODE_OFB, AES.MODE_CFB] else None
+            czasy = zmierz_czas_szyfrowania_i_deszyfrowania(tryb, sciezka, klucz, iv_param)
+            wyniki[rozmiar][nazwa] = czasy
+        os.remove(sciezka)
 
     return wyniki
 
@@ -73,10 +80,10 @@ def zaimplementujCbcUzywajacEcb(tekstJawny, klucz, iv):
     tekstSzyfrowany = b""
     poprzedniBlok = iv
 
-    for i in range(0, len(tekstJawny), rozmiarBloku):
-        blok = tekstJawny[i:i + rozmiarBloku]
-        if len(blok) < rozmiarBloku:
-            blok = pad(blok, rozmiarBloku)
+    for i in range(0, len(tekstJawny), ROZMIAR_BLOKU):
+        blok = tekstJawny[i:i + ROZMIAR_BLOKU]
+        if len(blok) < ROZMIAR_BLOKU:
+            blok = pad(blok, ROZMIAR_BLOKU)
         blokXor = bytes([_a ^ _b for _a, _b in zip(blok, poprzedniBlok)])
         zaszyfrowanyBlok = szyfrEcb.encrypt(blokXor)
         tekstSzyfrowany += zaszyfrowanyBlok
@@ -89,14 +96,14 @@ def deszyfrujCbcUzywajacEcb(tekstSzyfrowany, klucz, iv):
     tekstJawny = b""
     poprzedniBlok = iv
 
-    for i in range(0, len(tekstSzyfrowany), rozmiarBloku):
-        blok = tekstSzyfrowany[i:i + rozmiarBloku]
+    for i in range(0, len(tekstSzyfrowany), ROZMIAR_BLOKU):
+        blok = tekstSzyfrowany[i:i + ROZMIAR_BLOKU]
         odszyfrowanyBlok = szyfrEcb.decrypt(blok)
         blokXor = bytes([_a ^ _b for _a, _b in zip(odszyfrowanyBlok, poprzedniBlok)])
         tekstJawny += blokXor
         poprzedniBlok = blok
 
-    return unpad(tekstJawny, rozmiarBloku)
+    return unpad(tekstJawny, ROZMIAR_BLOKU)
 
 def analizujPropagacjeBledow(tryb, tekstJawny, klucz, iv=None):
     # Szyfrowanie
@@ -105,7 +112,7 @@ def analizujPropagacjeBledow(tryb, tekstJawny, klucz, iv=None):
         tekstSzyfrowany = szyfr.encrypt(tekstJawny)
         nonce = szyfr.nonce
     else:
-        tekstSzyfrowany = szyfr.encrypt(pad(tekstJawny, rozmiarBloku))
+        tekstSzyfrowany = szyfr.encrypt(pad(tekstJawny, ROZMIAR_BLOKU))
 
     # Wprowadzenie błędu w szyfrogramie (zmiana jednego bajtu)
     tekstSzyfrowanyZBledem = bytearray(tekstSzyfrowany)
@@ -121,7 +128,7 @@ def analizujPropagacjeBledow(tryb, tekstJawny, klucz, iv=None):
     else:
         szyfrDeszyfrujacy = AES.new(klucz, tryb, iv) if iv else AES.new(klucz, tryb)
         try:
-            tekstDeszyfrowany = unpad(szyfrDeszyfrujacy.decrypt(tekstSzyfrowanyZBledem), rozmiarBloku)
+            tekstDeszyfrowany = unpad(szyfrDeszyfrujacy.decrypt(tekstSzyfrowanyZBledem), ROZMIAR_BLOKU)
         except Exception as e:
             tekstDeszyfrowany = f"Błąd deszyfrowania: {e}"
 
@@ -129,6 +136,8 @@ def analizujPropagacjeBledow(tryb, tekstJawny, klucz, iv=None):
 
 
 if __name__ == "__main__":
+    ROZMIARY_PLIKOW = [1024 * 100, 1024 * 1000, 1024 * 10000]
+    wyniki = analizuj_tryby(ROZMIARY_PLIKOW)
     
     # Generowanie plików testowych
     rozmiaryPlikow = [102400, 1024000, 10240000]
@@ -139,17 +148,17 @@ if __name__ == "__main__":
     print("Pliki testowe wygenerowane pomyślnie.")
     
     # Zadanie 1
-    wyniki = analizujTryby(rozmiaryPlikow)
+    wyniki = analizuj_tryby(rozmiaryPlikow)
     for rozmiar, wynikiTrybow in wyniki.items():
         print(f"Rozmiar pliku: {rozmiar} bajtów")
         for tryb, czasy in wynikiTrybow.items():
             print(f"  Tryb: {tryb}, Czas szyfrowania: {czasy[0]:.6f}s, Czas deszyfrowania: {czasy[1]:.6f}s")
 
     # Zadanie 2
-    klucz = get_random_bytes(rozmiarKlucza)
-    iv = get_random_bytes(rozmiarBloku)
+    klucz = get_random_bytes(ROZMIAR_KLUCZA)
+    iv = get_random_bytes(ROZMIAR_BLOKU)
     tekstJawny = b"To jest testowa wiadomosc dla analizy propagacji bledow."
-    tekstJawny = pad(tekstJawny, rozmiarBloku)
+    tekstJawny = pad(tekstJawny, ROZMIAR_BLOKU)
 
     tryby = {
         "ECB": AES.MODE_ECB,
@@ -173,15 +182,15 @@ if __name__ == "__main__":
         print(f"  Wynik deszyfrowania: {tekstDeszyfrowany}")
 
     # Zadanie 3
-    klucz = get_random_bytes(rozmiarKlucza)
-    iv = get_random_bytes(rozmiarBloku)
+    klucz = get_random_bytes(ROZMIAR_KLUCZA)
+    iv = get_random_bytes(ROZMIAR_BLOKU)
     tekstJawny = b"To jest testowa wiadomosc dla implementacji trybu CBC."
-    tekstJawny = pad(tekstJawny, rozmiarBloku)
+    tekstJawny = pad(tekstJawny, ROZMIAR_BLOKU)
 
     tekstSzyfrowany = zaimplementujCbcUzywajacEcb(tekstJawny, klucz, iv)
     odszyfrowanyTekst = deszyfrujCbcUzywajacEcb(tekstSzyfrowany, klucz, iv)
 
-    assert unpad(tekstJawny, rozmiarBloku) == odszyfrowanyTekst, "Implementacja CBC nie powiodła się!"
+    assert unpad(tekstJawny, ROZMIAR_BLOKU) == odszyfrowanyTekst, "Implementacja CBC nie powiodła się!"
     print("Implementacja CBC przy użyciu trybu ECB zakończona sukcesem.")
     
 
