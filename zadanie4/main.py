@@ -140,15 +140,14 @@ if __name__ == "__main__":
     wyniki = analizuj_tryby(ROZMIARY_PLIKOW)
     
     # Generowanie plików testowych
-    rozmiaryPlikow = [102400, 1024000, 10240000]
-    for rozmiar in rozmiaryPlikow:
+    for rozmiar in ROZMIARY_PLIKOW:
         sciezkaPliku = f"plik_testowy_{rozmiar}.bin"
         with open(sciezkaPliku, 'wb') as f:
             f.write(os.urandom(rozmiar))
     print("Pliki testowe wygenerowane pomyślnie.")
     
     # Zadanie 1
-    wyniki = analizuj_tryby(rozmiaryPlikow)
+    wyniki = analizuj_tryby(ROZMIARY_PLIKOW)
     for rozmiar, wynikiTrybow in wyniki.items():
         print(f"Rozmiar pliku: {rozmiar} bajtów")
         for tryb, czasy in wynikiTrybow.items():
@@ -200,7 +199,7 @@ if __name__ == "__main__":
     czasySzyfrowania = {tryb: [] for tryb in tryby}
     czasyDeszyfrowania = {tryb: [] for tryb in tryby}
 
-    for rozmiar in rozmiaryPlikow:
+    for rozmiar in ROZMIARY_PLIKOW:
         for tryb in tryby:
             czasySzyfrowania[tryb].append(wyniki[rozmiar][tryb][0])
             czasyDeszyfrowania[tryb].append(wyniki[rozmiar][tryb][1])
@@ -208,7 +207,7 @@ if __name__ == "__main__":
     # Wykres czasów szyfrowania
     plt.figure(figsize=(10, 5))
     for tryb in tryby:
-        plt.plot(rozmiaryPlikow, czasySzyfrowania[tryb], label=f"{tryb} Szyfrowanie")
+        plt.plot(ROZMIARY_PLIKOW, czasySzyfrowania[tryb], label=f"{tryb} Szyfrowanie")
     plt.xlabel("Rozmiar pliku (bajty)")
     plt.ylabel("Czas (sekundy)")
     plt.title("Czasy szyfrowania dla różnych trybów")
@@ -220,7 +219,7 @@ if __name__ == "__main__":
     # Wykres czasów deszyfrowania
     plt.figure(figsize=(10, 5))
     for tryb in tryby:
-        plt.plot(rozmiaryPlikow, czasyDeszyfrowania[tryb], label=f"{tryb} Deszyfrowanie")
+        plt.plot(ROZMIARY_PLIKOW, czasyDeszyfrowania[tryb], label=f"{tryb} Deszyfrowanie")
     plt.xlabel("Rozmiar pliku (bajty)")
     plt.ylabel("Czas (sekundy)")
     plt.title("Czasy deszyfrowania dla różnych trybów")
