@@ -30,7 +30,7 @@ def diffie_hellman(p, g):
         'klucz_sesji_B': k_B
     }
 
-p = sympy.randprime(2**(253), 2**254)  # Generowanie liczby pierwszej p
+p = sympy.randprime(2**(12), 2**13)  # Generowanie liczby pierwszej p
 g = sympy.primitive_root(p) # Generowanie pierwiastka pierwotnego g dla p
 
 wynik = diffie_hellman(p, g)
