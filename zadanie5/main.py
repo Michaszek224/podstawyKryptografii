@@ -10,27 +10,29 @@ def generowanieDwojki():
     return x1, x2
 
 
-def shamirWizualny(orygialny, losowy):
+def shamirWizualny(orygialny):
     """"Funkcja implementująca algorytm Shamira"""
-    zakodowany = np.zeros((wymiary, wymiary*2 ), dtype=int)
-    counter = 0
+    obraz1 = np.zeros((wymiary, wymiary * 2), dtype=int)
+    obraz2 = np.zeros((wymiary, wymiary * 2), dtype=int)
+
     for i in range(wymiary):
         for j in range(wymiary):
-            if orygialny[i,j] == 0 and losowy[i,j+counter] == 0:
-                zakodowany[i,j+counter] = 0
-                zakodowany[i,j+counter+1] = 1
-            elif orygialny[i,j] == 0 and losowy[i,j+counter] == 1:
-                zakodowany[i,j+counter] = 1
-                zakodowany[i,j+counter+1] = 0
-            elif orygialny[i,j] == 1 and losowy[i,j+counter] == 0:
-                zakodowany[i,j+counter] = 1
-                zakodowany[i,j+counter+1] = 0
+            bit = orygialny[i, j]
+            pattern = random.choice([[1, 0], [0, 1]])
+
+            if bit == 0:
+                # Biały: ten sam wzór w obu
+                obraz1[i, j*2] = pattern[0]
+                obraz1[i, j*2+1] = pattern[1]
+                obraz2[i, j*2] = pattern[0]
+                obraz2[i, j*2+1] = pattern[1]
             else:
-                zakodowany[i,j+counter] = 0
-                zakodowany[i,j+counter+1] = 1
-            counter += 1
-        counter = 0
-    return zakodowany
+                # Czarny: odwrotny wzór
+                obraz1[i, j*2] = pattern[0]
+                obraz1[i, j*2+1] = pattern[1]
+                obraz2[i, j*2] = pattern[1]
+                obraz2[i, j*2+1] = pattern[0]
+    return obraz1, obraz2
 
 oryginalny = np.zeros((wymiary, wymiary), dtype=int)
 oryginalny[10,10:90] = 1 # pozioma linia gora
