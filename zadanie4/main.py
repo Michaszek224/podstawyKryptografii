@@ -194,7 +194,7 @@ if __name__ == "__main__":
     
 
     #Wizualizacja wyników
-    tryby = ["ECB", "CBC", "OFB", "CFB", "CTR"]
+    tryby = ["ECB", "CBC", "CTR"]
 
     czasySzyfrowania = {tryb: [] for tryb in tryby}
     czasyDeszyfrowania = {tryb: [] for tryb in tryby}
